@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 8080 // default port 8080
 const cookieParser = require('cookie-parser')
 app.use(cookieParser())
 
-const bodyParser = require("body-parser");
+const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended: true}));
 
 app.set('view engine', 'ejs')
@@ -21,34 +21,57 @@ app.set('view engine', 'ejs')
 const urlsGenerate = require('./views/urlsGenerate') //local path to urlsGenerate function
 
 //database set up
-let urlDatabase = {
-  'b2xVn2': 'http://www.lighthouselabs.ca',
-  '9sm5xK': 'http://www.google.com'
+let urlsDatabase = {
+  'b2xVn2': {
+    shortURL: 'b2xVn2',
+    id: '111',
+    longURL: 'http://www.lighthouselabs.ca'
+  },
+  '9sm5xK': {
+    shortURL: '9sm5xK',
+    id: '111',
+    longURL: 'http://www.google.com'
+  },
+  '8wo1m5': {
+    shortURL: '8wo1m5',
+    id: '222',
+    longURL: 'http://github.com'
+  }
 }
+
 let usersDatabase = {
-  "user1RandomID": {
-    id: "userRandomID",
-    email: "user@example.com",
-    password: "purple-monkey-dinosaur"
+  '111': {
+    id: '111',
+    email: '111@email.com',
+    password: '111password'
   },
- "user2RandomID": {
-    id: "user2RandomID",
-    email: "user2@example.com",
-    password: "dishwasher-funk"
-  },
-  "1111": {
-     id: "1111",
-     email: "1111email@example.com",
-     password: "1111password"
-   }
+  '222': {
+    id: '222',
+    email: '222@email.com',
+    password: '222password'
+  }
 }
+
+//helper functions set up
+let urlsForId = (id) => {
+  let urls = []
+  for (let url in urlsDatabase) {
+    if (urlsDatabase[url].id === id) {
+      urls.push(urlsDatabase[url])
+    }
+  }
+  return urls
+} //returns array of urls for one user
 
 //routes
 app.get('/urls', (req, res) => {
-  res.render('urlsIndex', {
-    urls: urlDatabase,
+  let tempVars = {
     userId: req.cookies.userId
-  })
+  }
+  if (req.cookies.userId) {
+    tempVars['urls'] =  urlsForId(req.cookies.userId.id)
+  }
+  res.render('urlsIndex', tempVars)
 }) //base index! :)
 
 app.get('/login', (req, res) => {
@@ -89,6 +112,9 @@ app.post('/register', (req, res) => {
 }) //collect the userId details
 
 app.get('/urls/new', (req, res) => {
+  if (!req.cookies.userId) {
+    res.redirect('/login')
+  }
   res.render('urlsNew', {
     userId: req.cookies.userId
   })
@@ -96,37 +122,42 @@ app.get('/urls/new', (req, res) => {
 
 app.post('/urls', (req, res) => {
   console.log(req.body)  // debug statement to see POST parameters
+  const id = req.cookies.userId.id
   const shortURL = urlsGenerate()
-  urlDatabase[shortURL] = req.body.longURL
+  urlsDatabase[shortURL] = {
+    shortURL: shortURL,
+    id: id,
+    longURL: req.body.longURL
+  }
   res.redirect(`/urls/${shortURL}`)
 }) //adds new short URL
 
 app.post('/logout', (req, res) => {
   res.clearCookie('userId', req.cookies.userId)
   console.log(usersDatabase)
-  res.redirect('urls')
+  res.redirect('/urls')
 })
 
 app.post('/urls/:id/delete', (req, res) => {
-  delete urlDatabase[req.params.id]
+  delete urlsDatabase[req.params.id]
   res.redirect('/urls')
 }) //deleting a URL entry
 
 app.post('/urls/:shortURL/update', (req, res) => {
-  urlDatabase[req.params.shortURL] = req.body.longURL
+  urlsDatabase[req.params.shortURL].longURL = req.body.longURL
   res.redirect('/urls')
 }) //modify a URL entry
 
 app.get('/urls/:id', (req, res) => {
   res.render('urlsShow', {
     shortURL: req.params.id,
-    longURL: urlDatabase[req.params.id],
+    longURL: urlsDatabase[req.params.id].longURL,
     userId: req.cookies.userId
   })
 }) //display one individual URL info
 
 app.get('/u/:shortURL', (req, res) => {
-  let longURL = urlDatabase[req.params.shortURL]
+  let longURL = urlsDatabase[req.params.shortURL].longURL
   res.redirect(longURL)
 }); //redirect to the actual site of longURL
 
