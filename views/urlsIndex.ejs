@@ -10,8 +10,8 @@
         Please log in to view your Tiny Linkz :)
       <% } else { %>
       <ul>
-        <% for (let i = 0; i < urls.length; i++) {%>
-          <li><%= urls[i].shortURL %>: <%= urls[i].longURL %> - <a href='/urls/<%= urls[i].shortURL %>'>update</a><form method='POST' action='/urls/<%= urls[i].shortURL %>/delete'><input type='submit' value='delete'></form>
+        <% for (url in urls) {%>
+          <li><%= urls[url].shortURL %>: <%= urls[url].longURL %> - <a href='/urls/<%= urls[url].shortURL %>'>update</a><form method='POST' action='/urls/<%= urls[url].shortURL %>/delete'><input type='submit' value='delete'></form>
         <% } %>
       </ul>
        <a href='/urls/new'>Tiny-fy your linkz nao :)</a>
