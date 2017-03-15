@@ -1,13 +1,12 @@
 <a href='/urls'>Home</a>
 <br>
-<% if (username) { %>
-  Logged in as: <%= username %>
+<% if (userId) { %>
+  Logged in as: <%= userId.email %>
+  <form method='POST' action='/logout'>
+    <input type='submit' value='logout'>
+  </form>
 <% } else { %>
-  <form method='POST' action='/urls'>
-    Username: <input type='text' name='username'>
-    <input type='submit' value='go'>
+  <form method='GET' action='/register'>
+    <input type='submit' value='Register for new account'>
   </form>
 <% } %>
-<form method='POST' action='/logout'>
-  <input type='submit' value='logout'>
-</form>
