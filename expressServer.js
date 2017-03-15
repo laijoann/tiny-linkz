@@ -51,6 +51,21 @@ app.get('/urls', (req, res) => {
   })
 }) //base index! :)
 
+app.get('/login', (req, res) => {
+  res.render('login')
+})
+app.post('/login', (req, res) => {
+  for (let user in usersDatabase) {
+    if (usersDatabase[user].email === req.body.email && usersDatabase[user].password === req.body.password) {
+      res.cookie('userId', usersDatabase[user])
+      res.redirect('/urls')
+    } else if (usersDatabase[user].email === req.body.email && usersDatabase[user].password !== req.body.password) {
+      res.status(403).send('Oops. Incorrect password.')
+    }
+  }
+  res.status(403).send('Sorry. Invalid email!')
+})
+
 app.get('/register', (req, res) => {
   res.render('register')
 }) //registration page

@@ -6,6 +6,9 @@
     <input type='submit' value='logout'>
   </form>
 <% } else { %>
+  <form method='GET' action='/login'>
+    <input type='submit' value='Log in'>
+  </form>
   <form method='GET' action='/register'>
     <input type='submit' value='Register for new account'>
   </form>
