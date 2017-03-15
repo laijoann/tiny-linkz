@@ -10,32 +10,51 @@ app.use(morgan('dev'))
 
 const PORT = process.env.PORT || 8080 // default port 8080
 
+const cookieParser = require('cookie-parser')
+app.use(cookieParser())
+
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({extended: true}));
 
 app.set('view engine', 'ejs')
 
 const urlsGenerate = require('./views/urlsGenerate') //local path to urlsGenerate function
-
+//
 let urlDatabase = {
   'b2xVn2': 'http://www.lighthouselabs.ca',
   '9sm5xK': 'http://www.google.com'
 }
 
+//routes
 app.get('/urls/new', (req, res) => {
-  res.render('urlsNew')
+  res.render('urlsNew', {
+    username: req.cookies.username
+  })
 }) //link to tiny-fy long URL
 
 app.post('/urls', (req, res) => {
   console.log(req.body)  // debug statement to see POST parameters
-  let shortURL = urlsGenerate(req.body.longURL)
-  urlDatabase[shortURL] = req.body.longURL
-  res.redirect(`/urls/${shortURL}`)
+  if (req.body.longURL) {
+    let shortURL = urlsGenerate(req.body.longURL)
+    urlDatabase[shortURL] = req.body.longURL
+    res.redirect(`/urls/${shortURL}`)
+  } else if (req.body.username) {
+    console.log(req.body.username)
+    res.cookie('username', req.body.username)
+    res.redirect('/urls')
+  }
 }) //adds new short URL
 
+app.post('/logout', (req, res) => {
+  res.clearCookie('username', req.cookies.username)
+  res.redirect('urls')
+})
+
 app.get('/urls', (req, res) => {
-  let templateVars = { urls: urlDatabase }
-  res.render('urlsIndex', templateVars)
+  res.render('urlsIndex', {
+    urls: urlDatabase,
+    username: req.cookies.username
+  })
 }) //base index! :)
 
 app.post('/urls/:id/delete', (req, res) => {
@@ -49,12 +68,14 @@ app.post('/urls/:shortURL/update', (req, res) => {
 }) //modify a URL entry
 
 app.get('/urls/:id', (req, res) => {
-  let templateVars = { shortURL: req.params.id, longURL: urlDatabase[req.params.id] }
-  res.render('urlsShow', templateVars)
+  res.render('urlsShow', {
+    shortURL: req.params.id,
+    longURL: urlDatabase[req.params.id],
+    username: req.cookies.username
+  })
 }) //display one individual URL info
 
 app.get('/u/:shortURL', (req, res) => {
-  // let longURL = ...
   let longURL = urlDatabase[req.params.shortURL]
   res.redirect(longURL)
 }); //redirect to the actual site of longURL
