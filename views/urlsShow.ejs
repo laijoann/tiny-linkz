@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <% include partials/_header %>
+</head>
+<body>
+    <main>
+      <%= shortURL %> - <%= longURL %>
+      <form method="POST" action="/urls/<%= shortURL %>/update"><input id='longURL' type='text' name='longURL' placeholder='http://' style='width: 300px'><input type="submit" value="update"></form>
+    </main>
+</body>
+</html>
