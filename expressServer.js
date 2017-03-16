@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 
 //set up
 const express = require('express')
@@ -210,7 +210,6 @@ app.get('/urls/:id', (req, res) => {
   } else if (req.session.userId.id !== urlsDatabase[req.params.id].id) {
     res.status(403).send('Eh? This doesn\'t seem to be your tiny link..')
   } else {
-    console.log(urlsDatabase[req.params.id].visitors) //debug statement
     const visitors = urlsDatabase[req.params.id].visitors
     let uniqueVisitors = []
     visitors.forEach((visitor) => {
@@ -248,7 +247,6 @@ app.get('/u/:shortURL', (req, res) => {
       id: req.session.uniqueVisitor,
       time: new Date().toString()
     })
-    console.log(urlsDatabase[shortURL].visitors) //debug statement
     res.redirect(urlsDatabase[shortURL].longURL)
   }
 }) //redirect to the actual site of longURL
