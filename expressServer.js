@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 
 //set up
 const express = require('express')
@@ -13,8 +13,10 @@ const PORT = process.env.PORT || 8080 // default port 8080
 const cookieParser = require('cookie-parser')
 app.use(cookieParser())
 
-const bodyParser = require('body-parser');
-app.use(bodyParser.urlencoded({extended: true}));
+const bodyParser = require('body-parser')
+app.use(bodyParser.urlencoded({extended: true}))
+
+const bcrypt = require('bcrypt')
 
 app.set('view engine', 'ejs')
 
@@ -43,12 +45,12 @@ let usersDatabase = {
   '111': {
     id: '111',
     email: '111@email.com',
-    password: '111password'
+    password: bcrypt.hashSync('111password', 10)
   },
   '222': {
     id: '222',
     email: '222@email.com',
-    password: '222password'
+    password: bcrypt.hashSync('222password', 10)
   }
 }
 
@@ -77,17 +79,20 @@ app.get('/urls', (req, res) => {
 app.get('/login', (req, res) => {
   res.render('login')
 })
+
 app.post('/login', (req, res) => {
+  const enteredEmail = req.body.email
+  const enteredPassword = req.body.password
   for (let user in usersDatabase) {
-    if (usersDatabase[user].email === req.body.email && usersDatabase[user].password === req.body.password) {
+    if (usersDatabase[user].email === enteredEmail && bcrypt.compareSync(enteredPassword, usersDatabase[user].password)) {
       res.cookie('userId', usersDatabase[user])
       res.redirect('/urls')
-    } else if (usersDatabase[user].email === req.body.email && usersDatabase[user].password !== req.body.password) {
+    } else if (usersDatabase[user].email === enteredEmail && usersDatabase[user].password !== enteredPassword) {
       res.status(403).send('Oops. Incorrect password.')
     }
   }
   res.status(403).send('Sorry. Invalid email!')
-})
+}) //check against database for user log in
 
 app.get('/register', (req, res) => {
   res.render('register')
@@ -106,10 +111,10 @@ app.post('/register', (req, res) => {
   usersDatabase[id]= {}
   usersDatabase[id]['id'] = id
   usersDatabase[id]['email'] = req.body.email
-  usersDatabase[id]['password'] = req.body.password
+  usersDatabase[id]['password'] = bcrypt.hashSync(req.body.password, 10) //////////
   res.cookie('userId', usersDatabase[id])
   res.redirect('/urls')
-}) //collect the userId details
+}) //collect user's registration details
 
 app.get('/urls/new', (req, res) => {
   if (!req.cookies.userId) {
@@ -136,7 +141,7 @@ app.post('/logout', (req, res) => {
   res.clearCookie('userId', req.cookies.userId)
   console.log(usersDatabase)
   res.redirect('/urls')
-})
+}) //logs out of account
 
 app.post('/urls/:id/delete', (req, res) => {
   delete urlsDatabase[req.params.id]
@@ -159,7 +164,7 @@ app.get('/urls/:id', (req, res) => {
 app.get('/u/:shortURL', (req, res) => {
   let longURL = urlsDatabase[req.params.shortURL].longURL
   res.redirect(longURL)
-}); //redirect to the actual site of longURL
+}) //redirect to the actual site of longURL
 
 app.listen(PORT, () => {
   console.log(`Server listening on ${PORT}!`)

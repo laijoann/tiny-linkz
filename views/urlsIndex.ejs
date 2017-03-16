@@ -3,20 +3,18 @@
 <head>
   <% include partials/_header %>
 </head>
-<body>
+<body style='font-size:20px; padding:50px;'>
   <main>
-    <ul>
-      <% if (!userId) { %>
-        Please log in to view your Tiny Linkz :)
-      <% } else { %>
+    <% if (!userId) { %>
+      Please log in to view your Tiny Linkz :)
+    <% } else { %>
       <ul>
         <% for (url in urls) {%>
           <li><%= urls[url].shortURL %>: <%= urls[url].longURL %> - <a href='/urls/<%= urls[url].shortURL %>'>update</a><form method='POST' action='/urls/<%= urls[url].shortURL %>/delete'><input type='submit' value='delete'></form>
         <% } %>
       </ul>
        <a href='/urls/new'>Tiny-fy your linkz nao :)</a>
-      <% } %>
-
-      </main>
+    <% } %>
+  </main>
 </body>
 </html>
