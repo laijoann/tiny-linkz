@@ -10,17 +10,11 @@ app.use(morgan('dev'))
 
 const PORT = process.env.PORT || 8080 // default port 8080
 
-//PREV ////////////////////
-const cookieParser = require('cookie-parser') //
-app.use(cookieParser()) /////////////////
-
-// const cookieSession = require('cookie-session')
-// app.user(cookieSession({
-//   name: 'session',
-//   keys: [],
-//   maxAge: 24 * 60 * 60 * 1000 //24 hours
-// }))
-
+const cookieSession = require('cookie-session')
+app.use(cookieSession({
+  name: 'session',
+  keys: ['key1', 'key2']
+}))
 
 const bodyParser = require('body-parser')
 app.use(bodyParser.urlencoded({extended: true}))
@@ -84,10 +78,10 @@ let usersDatabase = {
 //routes
 app.get('/urls', (req, res) => {
   let tempVars = {
-    userId: req.cookies.userId
+    userId: req.session.userId
   }
-  if (req.cookies.userId) {
-    tempVars['urls'] =  urlsForId(req.cookies.userId.id, urlsDatabase)
+  if (req.session.userId) {
+    tempVars['urls'] =  urlsForId(req.session.userId.id, urlsDatabase)
   }
   res.render('urlsIndex', tempVars)
 }) //base index! :)
@@ -101,7 +95,8 @@ app.post('/login', (req, res) => {
   const cookiePassword = req.body.password
   const check = loginAuth(cookieEmail, cookiePassword, usersDatabase)
   if (check.val === true) {
-    res.cookie('userId', check.user)
+    console.log(check)
+    req.session.userId = check.user
     res.redirect('/urls')
   } else if (check.val === 'wrongPw') {
     res.status(403).send('Oops. Incorrect password.')
@@ -130,22 +125,22 @@ app.post('/register', (req, res) => {
   usersDatabase[id]['id'] = id
   usersDatabase[id]['email'] = req.body.email
   usersDatabase[id]['password'] = bcrypt.hashSync(req.body.password, 10) //////////
-  res.cookie('userId', usersDatabase[id])
+  req.session.userId = usersDatabase[id]
   res.redirect('/urls')
 }) //collect user's registration details
 
 app.get('/urls/new', (req, res) => {
-  if (!req.cookies.userId) {
+  if (!req.session.userId) {
     res.redirect('/login')
   }
   res.render('urlsNew', {
-    userId: req.cookies.userId
+    userId: req.session.userId
   })
 }) //link to tiny-fy long URL
 
 app.post('/urls', (req, res) => {
   console.log(req.body)  // debug statement to see POST parameters
-  const id = req.cookies.userId.id
+  const id = req.session.userId.id
   const shortURL = urlsGenerate()
   urlsDatabase[shortURL] = {
     shortURL: shortURL,
@@ -156,7 +151,8 @@ app.post('/urls', (req, res) => {
 }) //adds new short URL
 
 app.post('/logout', (req, res) => {
-  res.clearCookie('userId', req.cookies.userId)
+  req.session = null
+  // res.clearCookie('userId', req.session.userId)
   console.log(usersDatabase)
   res.redirect('/urls')
 }) //logs out of account
@@ -175,7 +171,7 @@ app.get('/urls/:id', (req, res) => {
   res.render('urlsShow', {
     shortURL: req.params.id,
     longURL: urlsDatabase[req.params.id].longURL,
-    userId: req.cookies.userId
+    userId: req.session.userId
   })
 }) //display one individual URL info
 
