@@ -3,6 +3,7 @@
 //set up
 const express = require('express')
 const app = express()
+
 app.set('view engine', 'ejs')
 
 const morgan = require('morgan')
@@ -13,7 +14,7 @@ const PORT = process.env.PORT || 8080 // default port 8080
 const cookieSession = require('cookie-session')
 app.use(cookieSession({
   name: 'session',
-  keys: ['key1', 'key2']
+  secret: 'cookieKey'
 }))
 
 const bodyParser = require('body-parser')
@@ -21,7 +22,8 @@ app.use(bodyParser.urlencoded({extended: true}))
 
 const bcrypt = require('bcrypt')
 
-app.set('view engine', 'ejs')
+const methodOverride = require('method-override')
+app.use(methodOverride('_method'))
 
 //helper functions set up
 const urlsGenerate = require('./urlsGenerate')
@@ -37,10 +39,19 @@ let loginAuth = (cookieEmail, cookiePassword, db) => {
         user: db[user]
       }
     } else if (emailCheck && !pwCheck) {
-      return 'wrongPw'
+      return { val: 'wrongPw' }
     }
   }
-  return 'wrongEmail'
+  return { val: 'invalidEmail' }
+}
+
+let registerCheck = (db, email) => {
+  for (let user in db) {
+    if (db[user].email === email) {
+      return false
+    }
+  }
+  return true
 }
 
 //database set up
@@ -76,57 +87,75 @@ let usersDatabase = {
 }
 
 //routes
-app.get('/urls', (req, res) => {
-  let tempVars = {
-    userId: req.session.userId
-  }
+app.get('/', (req, res) => {
   if (req.session.userId) {
-    tempVars['urls'] =  urlsForId(req.session.userId.id, urlsDatabase)
+      res.redirect('/urls')
+  } else {
+    res.redirect('/login')
   }
-  res.render('urlsIndex', tempVars)
 }) //base index! :)
 
+app.get('/urls', (req, res) => {
+  if (!req.session.userId) {
+    res.status(401).send('Please sign in first!')
+  } else {
+    let tempVars = {
+      userId: req.session.userId,
+      urls: urlsForId(req.session.userId.id, urlsDatabase)
+    }
+    res.render('urlsIndex', tempVars)
+  }
+})
+
 app.get('/login', (req, res) => {
-  res.render('login')
+  if (!req.session.userId) {
+    res.render('login')
+  } else {
+    res.redirect('/')
+  }
 })
 
 app.post('/login', (req, res) => {
   const cookieEmail = req.body.email
   const cookiePassword = req.body.password
   const check = loginAuth(cookieEmail, cookiePassword, usersDatabase)
+  console.log(check)
   if (check.val === true) {
     console.log(check)
     req.session.userId = check.user
-    res.redirect('/urls')
+    res.redirect('/')
   } else if (check.val === 'wrongPw') {
     res.status(403).send('Oops. Incorrect password.')
-  } else if (check.val === 'wrongEmail') {
-    res.status(403).send('Oops. Incorrect email.')
+  } else if (check.val === 'invalidEmail') {
+    res.status(403).send('Oops. This email isn\'t registered for an account yet!')
   } else {
     res.status(403).send('Yikes! Something went wrong. Please try again.')
   }
 }) //check against database for user log in
 
 app.get('/register', (req, res) => {
-  res.render('register')
+  if (!req.session.userId) {
+    res.render('register')
+  } else {
+    res.redirect('/')
+  }
 }) //registration page
 
 app.post('/register', (req, res) => {
+  const check = registerCheck(usersDatabase, req.body.email)
   if (!req.body.email || !req.body.password) {
     res.status(400).send('Yikes! Email/password invalid :(')
+  } else if (!check) {
+    res.status(400).send('Ooo - account already exists for this email.')
+  } else {
+    const id = urlsGenerate()
+    usersDatabase[id]= {}
+    usersDatabase[id]['id'] = id
+    usersDatabase[id]['email'] = req.body.email
+    usersDatabase[id]['password'] = bcrypt.hashSync(req.body.password, 10)
+    req.session.userId = usersDatabase[id]
+    res.redirect('/')
   }
-  for (let user in usersDatabase) {
-    if (usersDatabase[user].email === req.body.email) {
-      res.status(400).send('Ooo - account already exists for this email!')
-    }
-  }
-  const id = urlsGenerate()
-  usersDatabase[id]= {}
-  usersDatabase[id]['id'] = id
-  usersDatabase[id]['email'] = req.body.email
-  usersDatabase[id]['password'] = bcrypt.hashSync(req.body.password, 10) //////////
-  req.session.userId = usersDatabase[id]
-  res.redirect('/urls')
 }) //collect user's registration details
 
 app.get('/urls/new', (req, res) => {
@@ -154,30 +183,41 @@ app.post('/logout', (req, res) => {
   req.session = null
   // res.clearCookie('userId', req.session.userId)
   console.log(usersDatabase)
-  res.redirect('/urls')
+  res.redirect('/login')
 }) //logs out of account
 
-app.post('/urls/:id/delete', (req, res) => {
+app.delete('/urls/:id', (req, res) => {
   delete urlsDatabase[req.params.id]
-  res.redirect('/urls')
+  res.redirect('/')
 }) //deleting a URL entry
 
 app.post('/urls/:shortURL/update', (req, res) => {
   urlsDatabase[req.params.shortURL].longURL = req.body.longURL
-  res.redirect('/urls')
+  res.redirect('/')
 }) //modify a URL entry
 
 app.get('/urls/:id', (req, res) => {
-  res.render('urlsShow', {
-    shortURL: req.params.id,
-    longURL: urlsDatabase[req.params.id].longURL,
-    userId: req.session.userId
-  })
+  if (!urlsDatabase[req.params.id]) {
+    res.status(404).send('Hmm, this tiny link doesn\'t exist yet!')
+  } else if (!req.session.userId) {
+    res.status(401).send('Please log in to view your tiny link :)')
+  } else if (req.session.userId.id !== urlsDatabase[req.params.id].id) {
+    res.status(403).send('Eh? This doesn\'t seem to be your tiny link..')
+  } else {
+    res.render('urlsShow', {
+      shortURL: req.params.id,
+      longURL: urlsDatabase[req.params.id].longURL,
+      userId: req.session.userId
+    })
+  }
 }) //display one individual URL info
 
 app.get('/u/:shortURL', (req, res) => {
-  let longURL = urlsDatabase[req.params.shortURL].longURL
-  res.redirect(longURL)
+  if (!urlsDatabase[req.params.shortURL]) {
+    res.status(404).send('Hm, this tiny link doesn\'t exist :(')
+  } else {
+    res.redirect(urlsDatabase[req.params.shortURL].longURL)
+  }
 }) //redirect to the actual site of longURL
 
 app.listen(PORT, () => {

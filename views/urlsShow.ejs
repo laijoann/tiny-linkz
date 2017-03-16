@@ -5,10 +5,12 @@
 </head>
 <body style='font-size:20px; padding:50px;'>
   <main>
-    <h1>Your tiny linkz is</h1>
+    <h3>Your tiny linkz is</h3>
     <%= shortURL %><br>
     for <%= longURL %>
     <form method='POST' action='/urls/<%= shortURL %>/update'><input id='longURL' type='text' name='longURL' placeholder='http://' style='width: 300px'><input type='submit' value='update'></form>
+    <br>
+    <form method='POST' action='/urls/<%= shortURL %>?_method=DELETE'><input type='submit' value='delete'></form>
   </main>
 </body>
 </html>

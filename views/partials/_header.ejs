@@ -1,7 +1,8 @@
-<a href='/urls'>Home</a>
-<br>
 <% if (userId) { %>
   Logged in as: <%= userId.email %>
+  <br>
+  <a href='/urls'>My Tiny Linkz</a>
+  <br>
   <form method='POST' action='/logout'>
     <input type='submit' value='logout'>
   </form>
