@@ -7,6 +7,7 @@ generateRandomString = () => {
     id.push(alphanumeric[Math.floor(Math.random() * alphanumeric.length)])
     counter++
   }
-  return id.join('');
+  return id.join('')
 }
-module.exports = generateRandomString;
+
+module.exports = generateRandomString

@@ -1,4 +1,4 @@
-'use strict'
+'use strict';
 
 //set up
 const express = require('express')
@@ -10,8 +10,17 @@ app.use(morgan('dev'))
 
 const PORT = process.env.PORT || 8080 // default port 8080
 
-const cookieParser = require('cookie-parser')
-app.use(cookieParser())
+//PREV ////////////////////
+const cookieParser = require('cookie-parser') //
+app.use(cookieParser()) /////////////////
+
+// const cookieSession = require('cookie-session')
+// app.user(cookieSession({
+//   name: 'session',
+//   keys: [],
+//   maxAge: 24 * 60 * 60 * 1000 //24 hours
+// }))
+
 
 const bodyParser = require('body-parser')
 app.use(bodyParser.urlencoded({extended: true}))
@@ -20,7 +29,25 @@ const bcrypt = require('bcrypt')
 
 app.set('view engine', 'ejs')
 
-const urlsGenerate = require('./views/urlsGenerate') //local path to urlsGenerate function
+//helper functions set up
+const urlsGenerate = require('./urlsGenerate')
+const urlsForId = require('./urlsForId')
+
+let loginAuth = (cookieEmail, cookiePassword, db) => {
+  for (let user in db) {
+    const emailCheck = db[user].email === cookieEmail
+    const pwCheck = bcrypt.compareSync(cookiePassword, db[user].password)
+    if (emailCheck && pwCheck) {
+      return {
+        val: true,
+        user: db[user]
+      }
+    } else if (emailCheck && !pwCheck) {
+      return 'wrongPw'
+    }
+  }
+  return 'wrongEmail'
+}
 
 //database set up
 let urlsDatabase = {
@@ -54,24 +81,13 @@ let usersDatabase = {
   }
 }
 
-//helper functions set up
-let urlsForId = (id) => {
-  let urls = []
-  for (let url in urlsDatabase) {
-    if (urlsDatabase[url].id === id) {
-      urls.push(urlsDatabase[url])
-    }
-  }
-  return urls
-} //returns array of urls for one user
-
 //routes
 app.get('/urls', (req, res) => {
   let tempVars = {
     userId: req.cookies.userId
   }
   if (req.cookies.userId) {
-    tempVars['urls'] =  urlsForId(req.cookies.userId.id)
+    tempVars['urls'] =  urlsForId(req.cookies.userId.id, urlsDatabase)
   }
   res.render('urlsIndex', tempVars)
 }) //base index! :)
@@ -81,17 +97,19 @@ app.get('/login', (req, res) => {
 })
 
 app.post('/login', (req, res) => {
-  const enteredEmail = req.body.email
-  const enteredPassword = req.body.password
-  for (let user in usersDatabase) {
-    if (usersDatabase[user].email === enteredEmail && bcrypt.compareSync(enteredPassword, usersDatabase[user].password)) {
-      res.cookie('userId', usersDatabase[user])
-      res.redirect('/urls')
-    } else if (usersDatabase[user].email === enteredEmail && usersDatabase[user].password !== enteredPassword) {
-      res.status(403).send('Oops. Incorrect password.')
-    }
+  const cookieEmail = req.body.email
+  const cookiePassword = req.body.password
+  const check = loginAuth(cookieEmail, cookiePassword, usersDatabase)
+  if (check.val === true) {
+    res.cookie('userId', check.user)
+    res.redirect('/urls')
+  } else if (check.val === 'wrongPw') {
+    res.status(403).send('Oops. Incorrect password.')
+  } else if (check.val === 'wrongEmail') {
+    res.status(403).send('Oops. Incorrect email.')
+  } else {
+    res.status(403).send('Yikes! Something went wrong. Please try again.')
   }
-  res.status(403).send('Sorry. Invalid email!')
 }) //check against database for user log in
 
 app.get('/register', (req, res) => {
