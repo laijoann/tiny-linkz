@@ -9,6 +9,9 @@ app.set('view engine', 'ejs')
 const morgan = require('morgan')
 app.use(morgan('dev'))
 
+const methodOverride = require('method-override')
+app.use(methodOverride('_method'))
+
 const PORT = process.env.PORT || 8080 // default port 8080
 
 const cookieSession = require('cookie-session')
@@ -21,9 +24,6 @@ const bodyParser = require('body-parser')
 app.use(bodyParser.urlencoded({extended: true}))
 
 const bcrypt = require('bcrypt')
-
-const methodOverride = require('method-override')
-app.use(methodOverride('_method'))
 
 //helper functions set up
 const urlsGenerate = require('./urlsGenerate')
@@ -59,16 +59,21 @@ let urlsDatabase = {
   'b2xVn2': {
     shortURL: 'b2xVn2',
     id: '111',
+    visitors: [
+      { id: '111', time: 'Thu Mar 16 2017 20:57:28' }
+    ],
     longURL: 'http://www.lighthouselabs.ca'
   },
   '9sm5xK': {
     shortURL: '9sm5xK',
     id: '111',
+    visitors: [],
     longURL: 'http://www.google.com'
   },
   '8wo1m5': {
     shortURL: '8wo1m5',
     id: '222',
+    visitors: [],
     longURL: 'http://github.com'
   }
 }
@@ -174,6 +179,7 @@ app.post('/urls', (req, res) => {
   urlsDatabase[shortURL] = {
     shortURL: shortURL,
     id: id,
+    visitors: [],
     longURL: req.body.longURL
   }
   res.redirect(`/urls/${shortURL}`)
@@ -191,7 +197,7 @@ app.delete('/urls/:id', (req, res) => {
   res.redirect('/')
 }) //deleting a URL entry
 
-app.post('/urls/:shortURL/update', (req, res) => {
+app.put('/urls/:shortURL', (req, res) => {
   urlsDatabase[req.params.shortURL].longURL = req.body.longURL
   res.redirect('/')
 }) //modify a URL entry
@@ -204,8 +210,20 @@ app.get('/urls/:id', (req, res) => {
   } else if (req.session.userId.id !== urlsDatabase[req.params.id].id) {
     res.status(403).send('Eh? This doesn\'t seem to be your tiny link..')
   } else {
+    console.log(urlsDatabase[req.params.id].visitors) //debug statement
+    const visitors = urlsDatabase[req.params.id].visitors
+    let uniqueVisitors = []
+    visitors.forEach((visitor) => {
+      if (uniqueVisitors.indexOf(visitor.id) === -1) {
+        uniqueVisitors.push(visitor.id)
+      }
+    })
     res.render('urlsShow', {
       shortURL: req.params.id,
+      visitors: {
+        total: visitors,
+        unique: uniqueVisitors.length
+      },
       longURL: urlsDatabase[req.params.id].longURL,
       userId: req.session.userId
     })
@@ -213,10 +231,25 @@ app.get('/urls/:id', (req, res) => {
 }) //display one individual URL info
 
 app.get('/u/:shortURL', (req, res) => {
-  if (!urlsDatabase[req.params.shortURL]) {
+  const shortURL = req.params.shortURL
+  if (!urlsDatabase[shortURL]) {
     res.status(404).send('Hm, this tiny link doesn\'t exist :(')
   } else {
-    res.redirect(urlsDatabase[req.params.shortURL].longURL)
+    let visitorId
+    if (!req.session.uniqueVisitor) {
+      if (!req.session.userId) {
+        visitorId = urlsGenerate()
+      } else {
+        visitorId = req.session.userId.id
+      }
+      req.session.uniqueVisitor = visitorId
+    }
+    urlsDatabase[shortURL].visitors.push({
+      id: req.session.uniqueVisitor,
+      time: new Date().toString()
+    })
+    console.log(urlsDatabase[shortURL].visitors) //debug statement
+    res.redirect(urlsDatabase[shortURL].longURL)
   }
 }) //redirect to the actual site of longURL
 
